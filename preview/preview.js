@@ -18,6 +18,37 @@
 (function () {
   "use strict";
 
+  // Synchronous pre-blank: if a splash is queued for THIS page (set by a
+  // homepage click before navigation, or self-splash on /portfolio), hide
+  // the document immediately so the destination's header/page header can't
+  // flash before the splash overlay is in the DOM.
+  (function preBlank() {
+    try {
+      let queued = false;
+      const stored = sessionStorage.getItem("preview-splash-arrival");
+      if (stored) {
+        const info = JSON.parse(stored);
+        if (info && info.href === location.pathname && info.src) queued = true;
+      }
+      const isPortfolio = /\/portfolio(\.html)?\/?$/.test(location.pathname);
+      if (isPortfolio && sessionStorage.getItem("preview-splash-played") !== location.pathname) {
+        queued = true;
+      }
+      if (!queued) return;
+      const style = document.createElement("style");
+      style.id = "preview-splash-preblank";
+      // Hide everything in body except the splash overlay we'll insert.
+      style.textContent = "body > *:not(.preview-splash-overlay) { visibility: hidden !important; }";
+      (document.head || document.documentElement).appendChild(style);
+      // Safety net: if for any reason the splash never starts fading,
+      // reveal the page anyway after a generous timeout.
+      setTimeout(() => {
+        const s = document.getElementById("preview-splash-preblank");
+        if (s) s.remove();
+      }, 10000);
+    } catch {}
+  })();
+
   // ---------- Fonts ----------
   // ----- Per-thumbnail metadata for the homepage labels --------------------
   // Edit these to set the "material" caption shown below each homepage tile
@@ -146,9 +177,40 @@
     saveOrder(keys);
   }
 
-  // Generic, adjacent-safe DOM swap using a comment placeholder.
+  // Swap two layout blocks visually. On Squarespace's Fluid Engine, blocks
+  // are placed by inline `grid-area` (or the row/column-start/end pieces)
+  // in a `style` attribute — DOM-reordering them is invisible. So when both
+  // blocks have grid-position inline styles, swap THOSE values. Fall back
+  // to a comment-placeholder DOM swap when there's no grid positioning.
+  const GRID_PROPS = [
+    "grid-area",
+    "grid-row", "grid-column",
+    "grid-row-start", "grid-row-end",
+    "grid-column-start", "grid-column-end",
+  ];
+  function readGridProps(el) {
+    const out = {};
+    for (const p of GRID_PROPS) {
+      const v = el.style.getPropertyValue(p);
+      if (v) out[p] = v;
+    }
+    return out;
+  }
+  function writeGridProps(el, props) {
+    for (const p of GRID_PROPS) el.style.removeProperty(p);
+    for (const p in props) el.style.setProperty(p, props[p]);
+  }
   function swapNodes(a, b) {
     if (!a || !b || a === b) return;
+    const ap = readGridProps(a);
+    const bp = readGridProps(b);
+    const aHasGrid = Object.keys(ap).length > 0;
+    const bHasGrid = Object.keys(bp).length > 0;
+    if (aHasGrid && bHasGrid) {
+      writeGridProps(a, bp);
+      writeGridProps(b, ap);
+      return;
+    }
     const placeholder = document.createComment("preview-swap");
     a.parentNode.insertBefore(placeholder, a);
     b.parentNode.insertBefore(a, b);
@@ -196,10 +258,17 @@
     function down(e) {
       if (e.button !== 0 && e.button !== undefined) return;
       const img = e.target.closest && e.target.closest("img");
-      if (!img) return;
+      if (!img) {
+        console.log("[preview-drag] mousedown — no img under target", e.target?.tagName, e.target?.className);
+        return;
+      }
       if (img.closest("#preview-panel") || img.closest("#preview-lightbox")) return;
       const block = blockOf(img);
-      if (!block) return;
+      if (!block) {
+        console.log("[preview-drag] mousedown — img has no block ancestor", imgKey(img));
+        return;
+      }
+      console.log("[preview-drag] mousedown OK", { src: imgKey(img), blockTag: block.tagName, blockClass: block.className.slice(0, 80), gridArea: block.style.gridArea || block.style.gridColumnStart });
       drag = { img, block, sx: e.clientX, sy: e.clientY, active: false, target: null };
     }
 
@@ -210,6 +279,7 @@
       if (!drag.active) {
         if (Math.hypot(dx, dy) < ACTIVATE_PX) return;
         drag.active = true;
+        console.log("[preview-drag] activated (threshold passed)");
         activate();
       }
       ghost.style.left = e.clientX + "px";
@@ -229,15 +299,28 @@
 
     function end() {
       if (!drag) return;
-      if (!drag.active) { drag = null; return; }
+      if (!drag.active) {
+        console.log("[preview-drag] mouseup before activation (treated as click)");
+        drag = null;
+        return;
+      }
       const { block, target } = drag;
       block.classList.remove("preview-reorder-source");
       if (target) target.classList.remove("preview-reorder-target");
       document.body.classList.remove("preview-reorder-active");
       if (ghost) { ghost.remove(); ghost = null; }
       if (target) {
+        const ap = readGridProps(block);
+        const bp = readGridProps(target);
+        const mode = (Object.keys(ap).length && Object.keys(bp).length) ? "grid-swap" : "dom-swap";
+        console.log("[preview-drag] swap", mode, {
+          a: { src: imgKey(drag.img), grid: ap },
+          b: { src: imgKey(target.querySelector("img")), grid: bp },
+        });
         swapNodes(block, target);
         persistCurrentOrder();
+      } else {
+        console.log("[preview-drag] mouseup with no target — no swap");
       }
       // Suppress the trailing click so we don't navigate / lightbox.
       const swallow = (ev) => {
@@ -338,21 +421,10 @@
 
       blocks.forEach(o => {
         o.b.addEventListener("mouseenter", () => {
-          const head = measure(o.b, "preview-thumb-head");
-          const foot = measure(o.b, "preview-thumb-foot");
-          const peers = colSiblings(o);
-          peers.forEach(p => {
-            const shift = (p.b === o.b) ? head : head + foot;
-            p.b.style.setProperty("--preview-shift", shift + "px");
-            p.b.classList.add("preview-thumb-shift");
-          });
           o.b.classList.add("preview-thumb-active");
         });
         o.b.addEventListener("mouseleave", () => {
-          blocks.forEach(p => {
-            p.b.classList.remove("preview-thumb-shift");
-            p.b.classList.remove("preview-thumb-active");
-          });
+          o.b.classList.remove("preview-thumb-active");
         });
       });
     });
@@ -389,12 +461,12 @@
       ";grid-area:auto" +
       ";grid-column-start:auto;grid-column-end:auto" +
       ";grid-row-start:auto;grid-row-end:auto" +
-      ";position:relative" +
+      ";position:fixed" +
       ";top:0;left:0" +
       ";width:100vw;height:100vh" +
       ";max-width:none;max-height:none" +
       ";margin:0;padding:0" +
-      ";overflow:hidden;z-index:1";
+      ";overflow:hidden;z-index:0";
     // Force every fluid-image wrapper inside to fill the new banner.
     block.querySelectorAll(
       ".fluid-image-component-root, .fluid-image-animation-wrapper, .fluid-image-container, .sqs-block-content, .sqs-block, a"
@@ -411,6 +483,47 @@
       hero.style.maxWidth = "none";
       hero.style.maxHeight = "none";
     }
+    // Pin to viewport (0,0) as the bottommost layer so the page header,
+    // overlay text, and any project-thumb links render naturally on top.
+    document.documentElement.style.margin = "0";
+    document.body.style.margin = "0";
+    // Force any site header to be transparent so it doesn't sit opaque
+    // over the full-bleed banner.
+    const headerSelectors = [
+      "header", "#header", ".header",
+      "[data-test='header']", ".site-header", ".sqs-header",
+    ];
+    document.querySelectorAll(headerSelectors.join(",")).forEach(h => {
+      h.style.background = "transparent";
+      h.style.backgroundColor = "transparent";
+    });
+    // Force opaque page wrappers transparent so the fixed hero can be seen
+    // behind them. Inline-style is reset by Squarespace's late runtime, so
+    // inject a stylesheet rule with !important that sticks. Scoped to the
+    // portfolio page via body-class so we don't affect other pages.
+    if (!document.getElementById("preview-portfolio-bg")) {
+      const css = document.createElement("style");
+      css.id = "preview-portfolio-bg";
+      css.textContent = `
+        body.preview-portfolio-bg .section-border,
+        body.preview-portfolio-bg .content-wrapper,
+        body.preview-portfolio-bg .content,
+        body.preview-portfolio-bg main#page,
+        body.preview-portfolio-bg main.container,
+        body.preview-portfolio-bg .page,
+        body.preview-portfolio-bg .page-section,
+        body.preview-portfolio-bg article,
+        body.preview-portfolio-bg section.page-section,
+        body.preview-portfolio-bg .portfolio-hover,
+        body.preview-portfolio-bg .portfolio-hover-display,
+        body.preview-portfolio-bg .portfolio-hover-items {
+          background: transparent !important;
+          background-color: transparent !important;
+        }
+      `;
+      document.head.appendChild(css);
+    }
+    document.body.classList.add("preview-portfolio-bg");
     document.body.insertBefore(block, document.body.firstChild);
   }
 
@@ -447,47 +560,89 @@
     ]);
   }
 
-  // Generic splash: show `srcUrl` fullscreen with object-fit:cover, hold
-  // until first-screen images on this page have finished loading (with min
-  // and max bounds), then translate/shrink to the bbox of `targetImg` while
-  // the backdrop fades to the page background.
+  // Walk up from body looking for the first non-transparent background color.
+  // Squarespace often paints the page background on a wrapper, leaving body
+  // itself rgba(0,0,0,0). If we use that as the overlay bg, the page leaks
+  // through during the hold.
+  function pageBgColor() {
+    let n = document.body;
+    while (n && n !== document.documentElement) {
+      const c = getComputedStyle(n).backgroundColor;
+      if (c && c !== "transparent" && !/^rgba\([^)]*,\s*0\s*\)$/.test(c)) return c;
+      n = n.parentElement;
+    }
+    const html = getComputedStyle(document.documentElement).backgroundColor;
+    if (html && html !== "transparent" && !/^rgba\([^)]*,\s*0\s*\)$/.test(html)) return html;
+    return "#ffffff";
+  }
+
+  // Generic splash: cover the page with `srcUrl` (object-fit: cover, no
+  // distortion). Hold until both the splash image AND the first viewport's
+  // worth of in-page images are loaded — so when the splash translates and
+  // fades, the target box and everything around it is already painted.
+  // The target image is NOT hidden; the splash overlays it during the hold
+  // and reveals it as it fades.
   function playSplash(srcUrl, targetImg) {
     if (!srcUrl) return;
-    const bg = getComputedStyle(document.body).backgroundColor || "#ffffff";
     const TRANSITION_MS = 1300;
+    const FADE_IN_MS = 220;
     const MIN_HOLD_MS = 800;
     const MAX_HOLD_MS = 8000;
 
     const overlay = document.createElement("div");
     overlay.className = "preview-splash-overlay";
-    overlay.style.backgroundColor = bg;
+    overlay.style.cssText =
+      "position:fixed;inset:0;" +
+      "background:" + pageBgColor() + ";" +
+      "z-index:300000;" +
+      "pointer-events:none;" +
+      "overflow:hidden;" +
+      "opacity:1;" +
+      "transition:opacity " + TRANSITION_MS + "ms cubic-bezier(.4,0,.2,1);";
 
     const splashImg = document.createElement("img");
-    splashImg.src = srcUrl;
     splashImg.alt = "";
-    Object.assign(splashImg.style, {
-      position: "fixed",
-      top: "0",
-      left: "0",
-      width: "100vw",
-      height: "100vh",
-      objectFit: "cover",
-      display: "block",
-      transition:
-        "top " + TRANSITION_MS + "ms cubic-bezier(.4,0,.2,1)," +
-        "left " + TRANSITION_MS + "ms cubic-bezier(.4,0,.2,1)," +
-        "width " + TRANSITION_MS + "ms cubic-bezier(.4,0,.2,1)," +
-        "height " + TRANSITION_MS + "ms cubic-bezier(.4,0,.2,1)," +
-        "opacity " + TRANSITION_MS + "ms cubic-bezier(.4,0,.2,1)",
-    });
+    splashImg.style.cssText =
+      "position:fixed;" +
+      "top:0;left:0;" +
+      "width:100vw;height:100vh;" +
+      "object-fit:cover;" +
+      "display:block;" +
+      "opacity:0;" +  // start invisible; fade in once loaded
+      "transition:opacity " + FADE_IN_MS + "ms ease;";
     overlay.appendChild(splashImg);
 
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    if (targetImg) targetImg.style.visibility = "hidden";
     document.body.appendChild(overlay);
 
+    function imageReady(img) {
+      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+      return new Promise(res => {
+        img.addEventListener("load", res, { once: true });
+        img.addEventListener("error", res, { once: true });
+      });
+    }
+
+    // Begin loading the splash image. Fade it in once it's actually painted.
+    splashImg.addEventListener("load", () => {
+      splashImg.style.opacity = "1";
+    }, { once: true });
+    splashImg.src = srcUrl;
+
     function startFade() {
+      // Reveal the underlying page just before the splash fades into it,
+      // so the target image (and the rest) are visible as the splash
+      // crossfades into place.
+      const pre = document.getElementById("preview-splash-preblank");
+      if (pre) pre.remove();
+      // Switch to the long transition so position + opacity ease together.
+      splashImg.style.transition =
+        "top " + TRANSITION_MS + "ms cubic-bezier(.4,0,.2,1)," +
+        "left " + TRANSITION_MS + "ms cubic-bezier(.4,0,.2,1)," +
+        "width " + TRANSITION_MS + "ms cubic-bezier(.4,0,.2,1)," +
+        "height " + TRANSITION_MS + "ms cubic-bezier(.4,0,.2,1)," +
+        "opacity " + TRANSITION_MS + "ms cubic-bezier(.4,0,.2,1)";
       if (targetImg && targetImg.isConnected) {
         const r = targetImg.getBoundingClientRect();
         Object.assign(splashImg.style, {
@@ -503,15 +658,15 @@
       overlay.style.opacity = "0";
       setTimeout(() => {
         overlay.remove();
-        if (targetImg) targetImg.style.visibility = "";
         document.body.style.overflow = prevOverflow;
       }, TRANSITION_MS + 100);
     }
 
-    // Hold at least MIN_HOLD_MS, but don't fade until first-screen images
-    // are loaded (capped at MAX_HOLD_MS so we never deadlock).
     const start = performance.now();
-    waitForFirstScreenImages(MAX_HOLD_MS).then(() => {
+    Promise.all([
+      imageReady(splashImg),
+      waitForFirstScreenImages(MAX_HOLD_MS),
+    ]).then(() => {
       const elapsed = performance.now() - start;
       const wait = Math.max(0, MIN_HOLD_MS - elapsed);
       setTimeout(startFade, wait);
@@ -1139,14 +1294,57 @@
     });
   }
 
+  // On homepage onload, jump past the site header / intro section so the
+  // first thing the visitor sees is the page heading + project tiles. Runs
+  // once after layout settles; if the user has already scrolled, leave them.
+  function scrollPastHomeHeader() {
+    if (!isHomePage()) return;
+    if (window.scrollY > 8) return;
+    // Pick the first reasonable target: the page-section heading element,
+    // else the first tile (anchor with image inside fluid-engine).
+    const target =
+      document.querySelector("main h1, .page-section h1") ||
+      document.querySelector("main h2, .page-section h2") ||
+      document.querySelector(".fluid-engine .fe-block a[href$='.html'] img")?.closest(".fe-block");
+    if (!target) return;
+    const r = target.getBoundingClientRect();
+    const y = window.scrollY + r.top - 12;
+    if (y > 16) window.scrollTo({ top: y, left: 0, behavior: "instant" });
+  }
+
+  // Prepend a "Home" link as the leftmost nav item in the site header.
+  // Idempotent: skip if our injected item is already present.
+  function injectHomeNav() {
+    document.querySelectorAll(".header-nav-list").forEach(list => {
+      if (list.querySelector(".preview-home-nav")) return;
+      const wrap = document.createElement("div");
+      wrap.className = "header-nav-item header-nav-item--collection preview-home-nav";
+      const a = document.createElement("a");
+      a.href = "/";
+      a.setAttribute("data-animation-role", "header-element");
+      if (location.pathname === "/" || /\/index\.html$/.test(location.pathname)) {
+        a.setAttribute("aria-current", "page");
+      }
+      a.textContent = "HOME";
+      wrap.appendChild(a);
+      list.insertBefore(wrap, list.firstChild);
+    });
+  }
+
   function init() {
     buildPanel();
     enableDragReorder();
     enableLightboxClicks();
     applyStoredOrder();
     enableHomepageHover();
+    injectHomeNav();
     captureNavSplash();
     requestAnimationFrame(runSplash);
+    // Wait one frame so heights are correct after fonts / images settle.
+    window.addEventListener("load", () => requestAnimationFrame(scrollPastHomeHeader), { once: true });
+    // Squarespace re-renders the header after our init; re-inject if needed.
+    setTimeout(injectHomeNav, 800);
+    setTimeout(injectHomeNav, 2500);
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
