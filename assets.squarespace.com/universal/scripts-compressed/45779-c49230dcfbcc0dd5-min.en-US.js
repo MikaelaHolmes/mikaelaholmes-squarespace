@@ -1,0 +1,3 @@
+"use strict";(globalThis.webpackChunkextract_css=globalThis.webpackChunkextract_css||[]).push([["45779"],{691985:function(c,n,e){e.d(n,{D:()=>t,R:()=>s});const t=(()=>{try{return window.Static.SQUARESPACE_CONTEXT}catch{throw new Error("@sqs/website-context was imported before window.Static.SQUARESPACE_CONTEXT was set")}})(),s=()=>{var o;return t==null||(o=t.website)===null||o===void 0?void 0:o.timeZone}},448175:function(c,n,e){e.d(n,{context:()=>t.D});var t=e(691985)}}]);
+
+//# sourceMappingURL=https://sourcemaps.squarespace.net/universal/scripts-compressed/sourcemaps/e9d38fcd36472704/45779-c49230dcfbcc0dd5-min.en-US.js.map

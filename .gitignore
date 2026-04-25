@@ -1,0 +1,4 @@
+# wget logs / scratch
+wget.log
+*.log
+.DS_Store
