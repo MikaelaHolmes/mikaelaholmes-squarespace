@@ -1,0 +1,10 @@
+{
+  "_comment": "Source-of-truth for renaming pages in the live Squarespace site. Each entry maps a current absolute path to a target slug AND the SEO/page title (becomes the page's <title>, og:title, and the editor's Page Title field). The Playwright script `preview/rename-pages.js` reads this and drives the Squarespace admin UI to update both. After the rename succeeds, re-mirror, then re-run flatten + rebase + build-page-titles + install — the install-all command does the chain. Titles default to the slug (and→&, title-case) if omitted.",
+
+  "renames": [
+    { "from": "/portfolio/project-one-h346n-7x5ex-9ydtz.html",   "to": "headpieces",   "title": "Headpieces"   },
+    { "from": "/portfolio/project-three-ph2n3-wt2mc-c9y6t.html", "to": "leather",      "title": "Leather"      },
+    { "from": "/portfolio/project-two-ky966-pe7bc.html",         "to": "jewelry",      "title": "Jewelry"      },
+    { "from": "/portfolio/project-two-whgpe-kkmw6-3jkmx.html",   "to": "illuminated",  "title": "Illuminated"  }
+  ]
+}
