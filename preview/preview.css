@@ -317,46 +317,40 @@ body.preview-reorder-active, body.preview-reorder-active * { cursor: grabbing !i
 a.preview-thumb-head { color: inherit; text-decoration: none; cursor: pointer; }
 a.preview-thumb-head:hover { text-decoration: underline; }
 
-/* 3-segment nav bar (foot): < CATEGORY · ⛶ · PROJECT > */
+/* Foot nav bar — matches the head's solid bar styling exactly (same font,
+   weight, letter-spacing, padding, backdrop). Two segments at most:
+   home gets `‹ CATEGORY` left + `PROJECT ›` right; category page gets just
+   `PROJECT ›` right-aligned. Image clicks anywhere else open the lightbox. */
 .preview-thumb-nav {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: space-between;
-  gap: 1px;
   padding: 0;
   pointer-events: none;
+  /* Inherit font/typography from .preview-thumb-foot (set above). */
 }
 .preview-thumb-block.preview-thumb-active .preview-thumb-nav { pointer-events: auto; }
 .preview-thumb-nav .ptn-seg {
-  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 6px;
-  padding: 10px 14px;
+  padding: 0 14px;
+  height: 100%;
   background: transparent;
   border: 0;
   color: inherit;
   font: inherit;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  letter-spacing: inherit;
+  text-transform: inherit;
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
-  transition: background .15s ease, transform .15s ease;
+  transition: opacity .15s ease;
 }
-.preview-thumb-nav .ptn-seg:hover { background: rgba(255,255,255,.12); }
+.preview-thumb-nav .ptn-seg:hover { opacity: .7; }
 .preview-thumb-nav .ptn-cat { margin-right: auto; }
-.preview-thumb-nav .ptn-zoom {
-  font-size: 18px;
-  line-height: 1;
-  padding: 8px 12px;
-  flex: 0 0 auto;
-}
-.preview-thumb-nav .ptn-proj { margin-left: auto; font-weight: 600; }
-.preview-thumb-nav .ptn-arrow { font-size: 1.1em; opacity: .8; }
-.preview-thumb-nav--cat .ptn-zoom { margin-right: auto; }
-.preview-thumb-nav--cat .ptn-proj { margin-left: 0; }
+.preview-thumb-nav .ptn-proj { margin-left: auto; }
+.preview-thumb-nav .ptn-arrow { font-size: 1.1em; opacity: .85; }
 
 /* Reordered-image highlight — subtle dashed outline + corner badge so the
    designer can see at a glance which slots have been moved from the original
@@ -821,15 +815,12 @@ body.preview-category-page .sqs-footer {
    Editorial typographic list — title-first, lights-off hover dim, cursor-
    tracked preview thumbnail. Distinct from the home-page mosaic by design. */
 .preview-projects-list-section {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 96px 32px 160px;
   color: inherit;
 }
-.preview-projects-head {
-  margin: 0 0 64px;
-  text-align: left;
-}
+.preview-projects-head { margin: 0 0 48px; text-align: left; }
 .preview-projects-title {
   font: 300 clamp(2.4rem, 6vw, 4.8rem)/1.05 "Playfair Display", "Cormorant Garamond", Georgia, serif;
   letter-spacing: 0.02em;
@@ -840,81 +831,170 @@ body.preview-category-page .sqs-footer {
   font: 400 clamp(0.95rem, 1.4vw, 1.05rem)/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   opacity: 0.55;
   max-width: 56ch;
-  margin: 0;
+  margin: 0 0 22px;
 }
-.preview-projects-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid currentColor;
+/* Sub-tab bar — picks the layout style for the projects list. */
+.preview-projects-tabs {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  overflow: hidden;
 }
-.preview-projects-item {
-  border-bottom: 1px solid currentColor;
-  transition: opacity .25s ease;
+.preview-projects-tabs .ppt-tab {
+  background: transparent;
+  border: 0;
+  border-right: 1px solid currentColor;
+  color: inherit;
+  font: 600 11px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: 10px 16px;
+  cursor: pointer;
+  opacity: .55;
+  transition: opacity .15s ease, background .15s ease;
 }
-.preview-projects-list:hover .preview-projects-item:not(:hover) {
-  opacity: 0.18;
+.preview-projects-tabs .ppt-tab:last-child { border-right: 0; }
+.preview-projects-tabs .ppt-tab:hover { opacity: 1; }
+.preview-projects-tabs .ppt-tab.is-active {
+  background: currentColor;
+  color: var(--pl-bg, #fff);
+  opacity: 1;
 }
+.preview-projects-list { list-style: none; margin: 0; padding: 0; }
+.preview-projects-item { transition: opacity .25s ease; }
+
+/* Shared item primitives. Each style uses the same children:
+   .ppi-thumb (img), .ppi-num, .ppi-name, .ppi-meta. */
 .preview-projects-link {
   display: grid;
-  grid-template-columns: 64px 1fr auto;
-  align-items: baseline;
-  gap: 24px;
-  padding: 22px 8px;
+  align-items: center;
   color: inherit;
   text-decoration: none;
-  transition: padding-left .25s ease;
 }
-.preview-projects-item:hover .preview-projects-link {
-  padding-left: 24px;
+.ppi-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: rgba(255,255,255,.04);
 }
-.preview-projects-num {
+.ppi-thumb-empty { background: rgba(255,255,255,.06); }
+.ppi-num {
   font: 400 0.85rem/1 "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   letter-spacing: 0.1em;
-  opacity: 0.4;
+  opacity: 0.45;
 }
-.preview-projects-name {
-  font: 300 clamp(1.4rem, 3.2vw, 2.6rem)/1.15 "Playfair Display", "Cormorant Garamond", Georgia, serif;
+.ppi-name {
+  font: 300 clamp(1.4rem, 3.2vw, 2.4rem)/1.15 "Playfair Display", "Cormorant Garamond", Georgia, serif;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.preview-projects-meta {
-  font: 400 0.75rem/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+.ppi-meta {
+  font: 400 0.72rem/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   opacity: 0.45;
   white-space: nowrap;
-  align-self: center;
 }
-@media (max-width: 640px) {
-  .preview-projects-link {
-    grid-template-columns: 36px 1fr;
-    gap: 14px;
-    padding: 16px 4px;
-  }
-  .preview-projects-meta {
-    grid-column: 2 / 3;
-    align-self: start;
-    margin-top: 4px;
-  }
+
+/* === Style 1: INDEX === Editorial row — text left, inline thumb right, always visible. */
+.style-index .preview-projects-list { border-top: 1px solid currentColor; }
+.style-index .preview-projects-item { border-bottom: 1px solid currentColor; }
+.style-index .preview-projects-link {
+  grid-template-columns: 56px 1fr auto 96px;
+  gap: 24px;
+  padding: 18px 8px;
+  transition: padding-left .25s ease;
 }
-.preview-projects-ghost {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 280px;
-  height: 360px;
-  object-fit: cover;
+.style-index .preview-projects-item:hover .preview-projects-link { padding-left: 24px; }
+.style-index .ppi-thumb { width: 96px; height: 120px; }
+.style-index .preview-projects-list:hover .preview-projects-item:not(:hover) { opacity: .25; }
+
+/* === Style 2: CONTACT SHEET === 3-up grid of small thumbs with caption. */
+.style-sheet .preview-projects-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 28px 24px;
+}
+.style-sheet .preview-projects-item { border: 0; }
+.style-sheet .preview-projects-link {
+  grid-template-rows: auto auto auto;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 0;
+}
+.style-sheet .ppi-thumb { aspect-ratio: 4/5; width: 100%; height: auto; }
+.style-sheet .ppi-num { display: none; }
+.style-sheet .ppi-name { font-size: clamp(1rem, 1.4vw, 1.15rem); }
+.style-sheet .ppi-meta { opacity: .55; }
+
+/* === Style 3: CARDS === Alternating L/R image + text editorial cards. */
+.style-cards .preview-projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+.style-cards .preview-projects-item { border: 0; }
+.style-cards .preview-projects-link {
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+  padding: 0;
+}
+.style-cards .preview-projects-item:nth-child(even) .preview-projects-link {
+  direction: rtl;
+}
+.style-cards .preview-projects-item:nth-child(even) .preview-projects-link > * { direction: ltr; }
+.style-cards .ppi-thumb { aspect-ratio: 4/5; width: 100%; height: auto; }
+.style-cards .ppi-num,
+.style-cards .ppi-name,
+.style-cards .ppi-meta { grid-column: 2; }
+.style-cards .ppi-thumb { grid-column: 1; grid-row: 1 / span 3; }
+.style-cards .ppi-num { align-self: end; margin-bottom: 8px; }
+.style-cards .ppi-name { align-self: start; font-size: clamp(1.6rem, 3.4vw, 2.6rem); }
+.style-cards .ppi-meta { align-self: start; margin-top: 12px; opacity: .55; }
+
+/* === Style 4: MARQUEE === Stacked full-width images with overlaid title. */
+.style-marquee .preview-projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.style-marquee .preview-projects-item { border: 0; position: relative; }
+.style-marquee .preview-projects-link {
+  position: relative;
+  grid-template-columns: 1fr;
+  padding: 0;
+}
+.style-marquee .ppi-thumb { aspect-ratio: 21/9; width: 100%; height: auto; }
+.style-marquee .ppi-num,
+.style-marquee .ppi-name,
+.style-marquee .ppi-meta {
+  position: absolute;
+  left: 32px;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0,0,0,.55);
+}
+.style-marquee .ppi-num { top: 24px; opacity: .9; }
+.style-marquee .ppi-name { bottom: 56px; font-size: clamp(2rem, 5vw, 4rem); font-weight: 200; }
+.style-marquee .ppi-meta { bottom: 30px; opacity: .9; }
+.style-marquee .preview-projects-link::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,.05) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0) 60%, rgba(0,0,0,.55) 100%);
   pointer-events: none;
-  opacity: 0;
-  transition: opacity .18s ease;
-  z-index: 9990;
-  margin-left: -140px;
-  margin-top: -180px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
 }
-@media (hover: none), (max-width: 720px) {
-  .preview-projects-ghost { display: none; }
-  .preview-projects-list:hover .preview-projects-item:not(:hover) { opacity: 1; }
+
+@media (max-width: 640px) {
+  .style-index .preview-projects-link { grid-template-columns: 36px 1fr 64px; gap: 14px; padding: 14px 4px; }
+  .style-index .ppi-meta { display: none; }
+  .style-index .ppi-thumb { width: 64px; height: 80px; }
+  .style-cards .preview-projects-link { grid-template-columns: 1fr; gap: 16px; }
+  .style-cards .preview-projects-item:nth-child(even) .preview-projects-link { direction: ltr; }
+  .style-cards .ppi-thumb { grid-column: 1; grid-row: auto; }
+  .style-cards .ppi-num,
+  .style-cards .ppi-name,
+  .style-cards .ppi-meta { grid-column: 1; }
 }
 .preview-detail-back-arrow { font-size: 18px; line-height: 1; }

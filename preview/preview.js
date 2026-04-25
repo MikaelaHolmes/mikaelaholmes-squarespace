@@ -787,7 +787,6 @@
         foot.className = "preview-thumb-foot preview-thumb-nav";
         foot.innerHTML =
           '<a class="ptn-seg ptn-cat" href="#" hidden><span class="ptn-arrow">‹</span><span class="ptn-label"></span></a>' +
-          '<button type="button" class="ptn-seg ptn-zoom" aria-label="Open lightbox">⛶</button>' +
           '<a class="ptn-seg ptn-proj" href="' + detailHref + '"><span class="ptn-label">Project</span><span class="ptn-arrow">›</span></a>';
         b.appendChild(head);
         b.appendChild(foot);
@@ -805,11 +804,8 @@
           seg.querySelector(".ptn-label").textContent = (cat && cat.title) || catHref.replace(/^\//, "").replace(/\.html?$/, "");
           seg.hidden = false;
         });
-        // Zoom button → lightbox; segment links navigate via default.
-        foot.querySelector(".ptn-zoom").addEventListener("click", (e) => {
-          e.preventDefault(); e.stopPropagation();
-          if (img) openLightbox(img);
-        });
+        // Segment links navigate via default; image clicks (anywhere else)
+        // fall through to enableLightboxClicks → lightbox.
       });
 
       function colSiblings(target) {
@@ -2309,7 +2305,6 @@
       const foot = document.createElement("div");
       foot.className = "preview-thumb-foot preview-thumb-nav preview-thumb-nav--cat";
       foot.innerHTML =
-        '<button type="button" class="ptn-seg ptn-zoom" aria-label="Open lightbox">⛶</button>' +
         '<a class="ptn-seg ptn-proj" href="' + detailHref + '"><span class="ptn-label">Project</span><span class="ptn-arrow">›</span></a>';
       block.appendChild(head);
       block.appendChild(foot);
@@ -2336,10 +2331,6 @@
             noCenter: true,
           }));
         } catch {}
-      });
-      foot.querySelector(".ptn-zoom").addEventListener("click", (e) => {
-        e.preventDefault(); e.stopPropagation();
-        openLightbox(img);
       });
     });
   }
@@ -2421,6 +2412,19 @@
     list.sort((a, b) => a.title.localeCompare(b.title));
     return list;
   }
+  const PROJECTS_STYLE_KEY = "preview-projects-style";
+  const PROJECTS_STYLES = ["index", "sheet", "cards", "marquee"];
+  function setProjectsStyle(style) {
+    if (!PROJECTS_STYLES.includes(style)) style = "index";
+    const section = document.getElementById("preview-projects-list");
+    if (!section) return;
+    PROJECTS_STYLES.forEach(s => section.classList.remove("style-" + s));
+    section.classList.add("style-" + style);
+    document.querySelectorAll("#preview-projects-tabs .ppt-tab").forEach(b => {
+      b.classList.toggle("is-active", b.dataset.style === style);
+    });
+    try { localStorage.setItem(PROJECTS_STYLE_KEY, style); } catch {}
+  }
   async function renderProjectsPage() {
     if (location.pathname !== "/projects.html") return;
     const ol = document.getElementById("preview-projects-list-ol");
@@ -2431,40 +2435,33 @@
     projects.forEach((p, i) => {
       const li = document.createElement("li");
       li.className = "preview-projects-item";
-      li.dataset.thumb = p.thumb || "";
       const a = document.createElement("a");
       a.href = p.href;
       a.className = "preview-projects-link";
+      const thumbSrc = p.thumb || "";
       a.innerHTML =
-        '<span class="preview-projects-num">' + String(i + 1).padStart(2, "0") + '</span>' +
-        '<span class="preview-projects-name">' + p.title + '</span>' +
-        '<span class="preview-projects-meta">' + (p.material || "") + '</span>';
+        (thumbSrc
+          ? '<img class="ppi-thumb" src="' + thumbSrc + '" alt="" loading="lazy" decoding="async">'
+          : '<span class="ppi-thumb ppi-thumb-empty"></span>') +
+        '<span class="ppi-num">' + String(i + 1).padStart(2, "0") + '</span>' +
+        '<span class="ppi-name">' + p.title + '</span>' +
+        '<span class="ppi-meta">' + (p.material || "") + '</span>';
       li.appendChild(a);
       ol.appendChild(li);
     });
-    // Cursor-tracked preview thumbnail.
-    const ghost = document.createElement("img");
-    ghost.className = "preview-projects-ghost";
-    ghost.alt = "";
-    ghost.decoding = "async";
-    document.body.appendChild(ghost);
-    let raf = 0, x = 0, y = 0, visible = false;
-    function tick() { raf = 0; ghost.style.transform = "translate(" + x + "px," + y + "px)"; }
-    ol.addEventListener("mousemove", e => {
-      x = e.clientX; y = e.clientY;
-      if (!raf) raf = requestAnimationFrame(tick);
-    });
-    ol.addEventListener("mouseover", e => {
-      const li = e.target.closest(".preview-projects-item");
-      if (!li) return;
-      const src = li.dataset.thumb;
-      if (!src) { ghost.style.opacity = "0"; visible = false; return; }
-      if (ghost.getAttribute("src") !== src) ghost.setAttribute("src", src);
-      if (!visible) { ghost.style.opacity = "1"; visible = true; }
-    });
-    ol.addEventListener("mouseleave", () => {
-      ghost.style.opacity = "0"; visible = false;
-    });
+    // Wire tab buttons.
+    const tabs = document.getElementById("preview-projects-tabs");
+    if (tabs) {
+      tabs.addEventListener("click", e => {
+        const btn = e.target.closest(".ppt-tab");
+        if (!btn) return;
+        setProjectsStyle(btn.dataset.style);
+      });
+    }
+    // Restore last-chosen style (default = "index" already on the section).
+    let initial = "index";
+    try { initial = localStorage.getItem(PROJECTS_STYLE_KEY) || "index"; } catch {}
+    setProjectsStyle(initial);
   }
 
   // Inject "PROJECTS" alongside the existing nav. Squarespace renders the
