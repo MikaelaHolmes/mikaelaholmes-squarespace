@@ -321,14 +321,19 @@
       }
 
       // Measure each label's rendered height at hover-time so the shift
-      // adapts to any title format / line count. The hovered tile shifts
-      // down by the head's height (so the head fits in the gap above it).
-      // Tiles BELOW it in the same column shift down by head + foot heights
-      // (so the foot fits between this tile's bottom and the next tile).
-      const GAP = 8;
+      // adapts to any title format / line count.
+      //
+      //   Hovered tile shifts down by head_height — exactly. That puts the
+      //   head's TOP edge at the image's original top edge (head is anchored
+      //   to bottom: 100% of the block, so head.bottom == block.new_top, and
+      //   head.bottom - head.height == original_top).
+      //
+      //   Tiles BELOW the hovered tile in the same column shift by
+      //   head_height + foot_height so the active tile's foot lands flush in
+      //   the gap that opens between the active and the next-below tile.
       function measure(block, cls) {
         const el = block.querySelector("." + cls);
-        return el ? Math.ceil(el.offsetHeight) : 0;
+        return el ? Math.ceil(el.getBoundingClientRect().height) : 0;
       }
 
       blocks.forEach(o => {
@@ -337,9 +342,7 @@
           const foot = measure(o.b, "preview-thumb-foot");
           const peers = colSiblings(o);
           peers.forEach(p => {
-            const shift = (p.b === o.b)
-              ? head + GAP
-              : head + foot + GAP * 2;
+            const shift = (p.b === o.b) ? head : head + foot;
             p.b.style.setProperty("--preview-shift", shift + "px");
             p.b.classList.add("preview-thumb-shift");
           });
@@ -375,27 +378,40 @@
     return best;
   }
 
-  // Move the hero image's containing block to the top of the page so the
-  // splash visibly settles into a banner at the top, not into a tile down
-  // the page somewhere.
+  // Make the portfolio hero a full-bleed banner anchored to the top-left of
+  // the viewport — width = 100vw, height = 100vh, pinned at (0, 0). The rest
+  // of the page flows below it.
   function moveHeroToTop(hero) {
     if (!hero) return;
     const block = hero.closest(".fe-block, .sqs-block, figure") || hero.parentElement;
     if (!block || !block.parentElement) return;
-    // For Fluid Engine items, neutralize grid-area so the block flows above
-    // the grid as a full-width banner.
-    block.style.gridArea = "auto";
-    block.style.gridColumnStart = "auto";
-    block.style.gridColumnEnd = "auto";
-    block.style.gridRowStart = "auto";
-    block.style.gridRowEnd = "auto";
-    block.style.width = "100%";
-    block.style.maxHeight = "70vh";
-    block.style.overflow = "hidden";
-    block.style.marginBottom = "32px";
-    // Find a stable host: prefer <main>, else the body.
-    const host = document.querySelector("main") || document.body;
-    host.insertBefore(block, host.firstChild);
+    block.style.cssText +=
+      ";grid-area:auto" +
+      ";grid-column-start:auto;grid-column-end:auto" +
+      ";grid-row-start:auto;grid-row-end:auto" +
+      ";position:relative" +
+      ";top:0;left:0" +
+      ";width:100vw;height:100vh" +
+      ";max-width:none;max-height:none" +
+      ";margin:0;padding:0" +
+      ";overflow:hidden;z-index:1";
+    // Force every fluid-image wrapper inside to fill the new banner.
+    block.querySelectorAll(
+      ".fluid-image-component-root, .fluid-image-animation-wrapper, .fluid-image-container, .sqs-block-content, .sqs-block, a"
+    ).forEach(el => {
+      el.style.width = "100%";
+      el.style.height = "100%";
+      el.style.maxHeight = "none";
+      el.style.maxWidth = "none";
+    });
+    if (hero) {
+      hero.style.width = "100%";
+      hero.style.height = "100%";
+      hero.style.objectFit = "cover";
+      hero.style.maxWidth = "none";
+      hero.style.maxHeight = "none";
+    }
+    document.body.insertBefore(block, document.body.firstChild);
   }
 
   // Wait for every <img> whose layout-rect intersects the first viewport
@@ -1063,8 +1079,22 @@
     });
     fontList.appendChild(reset);
 
+    // Lazy-load each picker font only when the item scrolls into the panel's
+    // visible area (or the user clicks it). Preloading all 40 at init was
+    // contending with the page's own Epilogue/Poppins fetches and causing
+    // the page's headings to fall back to the system sans-serif.
+    const fontObserver = ("IntersectionObserver" in window)
+      ? new IntersectionObserver((entries) => {
+          entries.forEach(e => {
+            if (e.isIntersecting) {
+              loadGoogleFont(e.target.dataset.font);
+              fontObserver.unobserve(e.target);
+            }
+          });
+        }, { root: fontList, rootMargin: "200px" })
+      : null;
+
     FONTS.forEach(family => {
-      loadGoogleFont(family); // preload so previews render in their own face
       const item = document.createElement("button");
       item.type = "button";
       item.className = "pp-font";
@@ -1073,11 +1103,13 @@
       item.textContent = family;
       if (family === currentFont) item.classList.add("active");
       item.addEventListener("click", () => {
+        loadGoogleFont(family);
         applyFont(family);
         fontList.querySelectorAll(".pp-font").forEach(el =>
           el.classList.toggle("active", el.dataset.font === family));
       });
       fontList.appendChild(item);
+      if (fontObserver) fontObserver.observe(item);
     });
 
     search.addEventListener("input", () => {
