@@ -185,30 +185,33 @@ body:not(.preview-show-cat-material) .preview-cat-thumb .preview-thumb-foot { di
 #preview-panel .pp-imgtitles-btn:hover { background: #e8e8e8; }
 #preview-panel .pp-imgtitles-hint { font-size: 11px; color: #666; margin-bottom: 6px; }
 
-/* AI-named-image badge: always visible, distinct yellow border + tag so
-   the user can spot vision-generated names at a glance and approve/edit. */
+/* AI-named-image badge: subdued neutral chip so it reads as a status cue
+   rather than a warning sticker. (Was bright yellow — the user found that
+   too loud on every overlay.) */
 .preview-vision-badge {
   position: absolute;
   top: 6px; left: 6px;
   z-index: 5;
   max-width: calc(100% - 12px);
-  padding: 4px 8px;
-  background: rgba(255, 220, 60, .92);
-  color: #1a1300;
-  border: 1px solid #b58900;
-  border-radius: 3px;
-  font: 600 11px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  letter-spacing: .04em;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+  padding: 3px 8px;
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+  border: 0;
+  border-radius: 2px;
+  font: 600 10px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
   pointer-events: none;
-  text-transform: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  opacity: .85;
 }
 .preview-vision-badge::before {
   content: "AI · ";
-  opacity: .7;
+  opacity: .65;
   font-weight: 700;
 }
 
@@ -231,13 +234,10 @@ body:not(.preview-show-cat-material) .preview-cat-thumb .preview-thumb-foot { di
 }
 .preview-moved-badge::before { content: "↕ "; opacity: .8; }
 
-/* Material edited locally — same visual language as the AI title badge so
-   the two read as the same kind of "needs review on the live site" cue. */
+/* Material edited locally — neutral (was yellow). Adds a small leading
+   pencil glyph so the user still notices the override at a glance. */
 .preview-thumb-foot.preview-material-edited {
-  background: rgba(255, 220, 60, .92) !important;
-  color: #1a1300 !important;
-  border: 1px solid #b58900;
-  border-radius: 3px;
+  /* Inherit the foot's normal background; just prepend a marker. */
 }
 .preview-thumb-foot.preview-material-edited::before {
   content: "✎ ";
@@ -313,8 +313,19 @@ body.preview-reorder-active, body.preview-reorder-active * { cursor: grabbing !i
   opacity: 1;
   transform: translateY(0);
 }
-/* Head is now a clickable link to the detail page. */
-a.preview-thumb-head { color: inherit; text-decoration: none; cursor: pointer; }
+/* Head is now a clickable link to the detail page. Force the same compact
+   typography as before — Squarespace's anchor styles otherwise inherit a
+   much larger inline font-size from the surrounding block. */
+a.preview-thumb-head {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.25;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
 a.preview-thumb-head:hover { text-decoration: underline; }
 
 /* Foot nav bar — matches the head's solid bar styling exactly (same font,
@@ -814,58 +825,42 @@ body.preview-category-page .sqs-footer {
 /* ---------- Projects index (/projects.html) ----------
    Editorial typographic list — title-first, lights-off hover dim, cursor-
    tracked preview thumbnail. Distinct from the home-page mosaic by design. */
+/* Make the page-section's full-bleed black background actually fill the
+   viewport on /projects.html — Squarespace's static section stylesheet
+   only paints the inset container, leaving the html/body margin colored
+   by the parent theme. We force the dark theme to extend edge-to-edge. */
+body.collection-type-page:has(#preview-projects-list),
+body:has(#preview-projects-list) {
+  background: #0c0c0c;
+  color: #f4f0e6;
+}
+body:has(#preview-projects-list) #page > .sections > section.page-section {
+  background: #0c0c0c;
+}
+
 .preview-projects-list-section {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 96px 32px 160px;
+  padding: 80px 32px 120px;
   color: inherit;
 }
-.preview-projects-head { margin: 0 0 48px; text-align: left; }
+.preview-projects-head { margin: 0 0 56px; text-align: left; }
 .preview-projects-title {
-  font: 300 clamp(2.4rem, 6vw, 4.8rem)/1.05 "Playfair Display", "Cormorant Garamond", Georgia, serif;
+  font: 300 clamp(2rem, 5vw, 3.6rem)/1.05 "Playfair Display", "Cormorant Garamond", Georgia, serif;
   letter-spacing: 0.02em;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   text-transform: uppercase;
 }
 .preview-projects-sub {
-  font: 400 clamp(0.95rem, 1.4vw, 1.05rem)/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 400 clamp(0.9rem, 1.2vw, 1rem)/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   opacity: 0.55;
   max-width: 56ch;
-  margin: 0 0 22px;
-}
-/* Sub-tab bar — picks the layout style for the projects list. */
-.preview-projects-tabs {
-  display: inline-flex;
-  gap: 0;
-  border: 1px solid currentColor;
-  border-radius: 2px;
-  overflow: hidden;
-}
-.preview-projects-tabs .ppt-tab {
-  background: transparent;
-  border: 0;
-  border-right: 1px solid currentColor;
-  color: inherit;
-  font: 600 11px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  padding: 10px 16px;
-  cursor: pointer;
-  opacity: .55;
-  transition: opacity .15s ease, background .15s ease;
-}
-.preview-projects-tabs .ppt-tab:last-child { border-right: 0; }
-.preview-projects-tabs .ppt-tab:hover { opacity: 1; }
-.preview-projects-tabs .ppt-tab.is-active {
-  background: currentColor;
-  color: var(--pl-bg, #fff);
-  opacity: 1;
+  margin: 0;
 }
 .preview-projects-list { list-style: none; margin: 0; padding: 0; }
 .preview-projects-item { transition: opacity .25s ease; }
 
-/* Shared item primitives. Each style uses the same children:
-   .ppi-thumb (img), .ppi-num, .ppi-name, .ppi-meta. */
+/* Shared item primitives. */
 .preview-projects-link {
   display: grid;
   align-items: center;
@@ -881,120 +876,74 @@ body.preview-category-page .sqs-footer {
 }
 .ppi-thumb-empty { background: rgba(255,255,255,.06); }
 .ppi-num {
-  font: 400 0.85rem/1 "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font: 400 0.78rem/1 "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   letter-spacing: 0.1em;
   opacity: 0.45;
 }
 .ppi-name {
-  font: 300 clamp(1.4rem, 3.2vw, 2.4rem)/1.15 "Playfair Display", "Cormorant Garamond", Georgia, serif;
-  letter-spacing: 0.06em;
+  font: 300 clamp(1.2rem, 2.4vw, 1.85rem)/1.15 "Playfair Display", "Cormorant Garamond", Georgia, serif;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
+.ppi-sub {
+  font: 400 0.92rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  opacity: 0.7;
+  max-width: 48ch;
+}
 .ppi-meta {
-  font: 400 0.72rem/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 400 0.7rem/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   opacity: 0.45;
   white-space: nowrap;
 }
 
-/* === Style 1: INDEX === Editorial row — text left, inline thumb right, always visible. */
-.style-index .preview-projects-list { border-top: 1px solid currentColor; }
-.style-index .preview-projects-item { border-bottom: 1px solid currentColor; }
-.style-index .preview-projects-link {
-  grid-template-columns: 56px 1fr auto 96px;
-  gap: 24px;
-  padding: 18px 8px;
-  transition: padding-left .25s ease;
-}
-.style-index .preview-projects-item:hover .preview-projects-link { padding-left: 24px; }
-.style-index .ppi-thumb { width: 96px; height: 120px; }
-.style-index .preview-projects-list:hover .preview-projects-item:not(:hover) { opacity: .25; }
-
-/* === Style 2: CONTACT SHEET === 3-up grid of small thumbs with caption. */
-.style-sheet .preview-projects-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 28px 24px;
-}
-.style-sheet .preview-projects-item { border: 0; }
-.style-sheet .preview-projects-link {
-  grid-template-rows: auto auto auto;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  padding: 0;
-}
-.style-sheet .ppi-thumb { aspect-ratio: 4/5; width: 100%; height: auto; }
-.style-sheet .ppi-num { display: none; }
-.style-sheet .ppi-name { font-size: clamp(1rem, 1.4vw, 1.15rem); }
-.style-sheet .ppi-meta { opacity: .55; }
-
-/* === Style 3: CARDS === Alternating L/R image + text editorial cards. */
-.style-cards .preview-projects-list {
+/* CARDS — alternating L/R image + text editorial pair. Scaled down vs.
+   prior draft: image 4/5 ratio, ~320px column, tighter gap, smaller copy. */
+.preview-projects-list {
   display: flex;
   flex-direction: column;
-  gap: 56px;
+  gap: 36px;
 }
-.style-cards .preview-projects-item { border: 0; }
-.style-cards .preview-projects-link {
-  grid-template-columns: 1fr 1fr;
-  gap: 48px;
-  align-items: center;
+.preview-projects-item { border: 0; }
+.preview-projects-link {
+  grid-template-columns: 320px 1fr;
+  grid-template-rows: auto auto auto auto;
+  grid-template-areas:
+    "thumb num"
+    "thumb name"
+    "thumb sub"
+    "thumb meta";
+  gap: 4px 32px;
+  align-items: start;
   padding: 0;
 }
-.style-cards .preview-projects-item:nth-child(even) .preview-projects-link {
-  direction: rtl;
+.preview-projects-item:nth-child(even) .preview-projects-link {
+  grid-template-columns: 1fr 320px;
+  grid-template-areas:
+    "num   thumb"
+    "name  thumb"
+    "sub   thumb"
+    "meta  thumb";
 }
-.style-cards .preview-projects-item:nth-child(even) .preview-projects-link > * { direction: ltr; }
-.style-cards .ppi-thumb { aspect-ratio: 4/5; width: 100%; height: auto; }
-.style-cards .ppi-num,
-.style-cards .ppi-name,
-.style-cards .ppi-meta { grid-column: 2; }
-.style-cards .ppi-thumb { grid-column: 1; grid-row: 1 / span 3; }
-.style-cards .ppi-num { align-self: end; margin-bottom: 8px; }
-.style-cards .ppi-name { align-self: start; font-size: clamp(1.6rem, 3.4vw, 2.6rem); }
-.style-cards .ppi-meta { align-self: start; margin-top: 12px; opacity: .55; }
+.ppi-thumb { grid-area: thumb; aspect-ratio: 4/5; width: 100%; height: auto; }
+.ppi-num   { grid-area: num;  align-self: end;   margin-bottom: 4px; }
+.ppi-name  { grid-area: name; align-self: start; }
+.ppi-sub   { grid-area: sub;  align-self: start; margin-top: 8px; }
+.ppi-meta  { grid-area: meta; align-self: start; margin-top: 12px; }
 
-/* === Style 4: MARQUEE === Stacked full-width images with overlaid title. */
-.style-marquee .preview-projects-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.style-marquee .preview-projects-item { border: 0; position: relative; }
-.style-marquee .preview-projects-link {
-  position: relative;
-  grid-template-columns: 1fr;
-  padding: 0;
-}
-.style-marquee .ppi-thumb { aspect-ratio: 21/9; width: 100%; height: auto; }
-.style-marquee .ppi-num,
-.style-marquee .ppi-name,
-.style-marquee .ppi-meta {
-  position: absolute;
-  left: 32px;
-  color: #fff;
-  text-shadow: 0 2px 12px rgba(0,0,0,.55);
-}
-.style-marquee .ppi-num { top: 24px; opacity: .9; }
-.style-marquee .ppi-name { bottom: 56px; font-size: clamp(2rem, 5vw, 4rem); font-weight: 200; }
-.style-marquee .ppi-meta { bottom: 30px; opacity: .9; }
-.style-marquee .preview-projects-link::before {
-  content: "";
-  position: absolute; inset: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,.05) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0) 60%, rgba(0,0,0,.55) 100%);
-  pointer-events: none;
-}
-
-@media (max-width: 640px) {
-  .style-index .preview-projects-link { grid-template-columns: 36px 1fr 64px; gap: 14px; padding: 14px 4px; }
-  .style-index .ppi-meta { display: none; }
-  .style-index .ppi-thumb { width: 64px; height: 80px; }
-  .style-cards .preview-projects-link { grid-template-columns: 1fr; gap: 16px; }
-  .style-cards .preview-projects-item:nth-child(even) .preview-projects-link { direction: ltr; }
-  .style-cards .ppi-thumb { grid-column: 1; grid-row: auto; }
-  .style-cards .ppi-num,
-  .style-cards .ppi-name,
-  .style-cards .ppi-meta { grid-column: 1; }
+@media (max-width: 720px) {
+  .preview-projects-link,
+  .preview-projects-item:nth-child(even) .preview-projects-link {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "thumb"
+      "num"
+      "name"
+      "sub"
+      "meta";
+    gap: 8px;
+  }
+  .ppi-thumb { aspect-ratio: 4/3; }
 }
 .preview-detail-back-arrow { font-size: 18px; line-height: 1; }

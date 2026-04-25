@@ -1728,6 +1728,9 @@
       // Don't intercept clicks on our own nav segments (head link, foot
       // category/zoom/project segments) — they have their own behavior.
       if (e.target.closest && e.target.closest(".preview-thumb-head, .preview-thumb-nav, .preview-thumb-foot")) return;
+      // The /projects.html cards are full-width links to detail pages —
+      // never open a lightbox from there.
+      if (e.target.closest && e.target.closest(".preview-projects-link, #preview-projects-list")) return;
 
       const w = img.naturalWidth || img.width || 0;
       const h = img.naturalHeight || img.height || 0;
@@ -2412,18 +2415,8 @@
     list.sort((a, b) => a.title.localeCompare(b.title));
     return list;
   }
-  const PROJECTS_STYLE_KEY = "preview-projects-style";
-  const PROJECTS_STYLES = ["index", "sheet", "cards", "marquee"];
-  function setProjectsStyle(style) {
-    if (!PROJECTS_STYLES.includes(style)) style = "index";
-    const section = document.getElementById("preview-projects-list");
-    if (!section) return;
-    PROJECTS_STYLES.forEach(s => section.classList.remove("style-" + s));
-    section.classList.add("style-" + style);
-    document.querySelectorAll("#preview-projects-tabs .ppt-tab").forEach(b => {
-      b.classList.toggle("is-active", b.dataset.style === style);
-    });
-    try { localStorage.setItem(PROJECTS_STYLE_KEY, style); } catch {}
+  function escapeHtml(s) {
+    return String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
   }
   async function renderProjectsPage() {
     if (location.pathname !== "/projects.html") return;
@@ -2441,27 +2434,20 @@
       const thumbSrc = p.thumb || "";
       a.innerHTML =
         (thumbSrc
-          ? '<img class="ppi-thumb" src="' + thumbSrc + '" alt="" loading="lazy" decoding="async">'
+          ? '<img class="ppi-thumb" src="' + escapeHtml(thumbSrc) + '" alt="" loading="lazy" decoding="async">'
           : '<span class="ppi-thumb ppi-thumb-empty"></span>') +
         '<span class="ppi-num">' + String(i + 1).padStart(2, "0") + '</span>' +
-        '<span class="ppi-name">' + p.title + '</span>' +
-        '<span class="ppi-meta">' + (p.material || "") + '</span>';
+        '<span class="ppi-name">' + escapeHtml(p.title) + '</span>' +
+        '<span class="ppi-sub"></span>' +
+        '<span class="ppi-meta">' + escapeHtml(p.material || "") + '</span>';
       li.appendChild(a);
       ol.appendChild(li);
-    });
-    // Wire tab buttons.
-    const tabs = document.getElementById("preview-projects-tabs");
-    if (tabs) {
-      tabs.addEventListener("click", e => {
-        const btn = e.target.closest(".ppt-tab");
-        if (!btn) return;
-        setProjectsStyle(btn.dataset.style);
+      // Pull the detail page's first paragraph as a subheader (async).
+      fetchPageMeta(p.href).then(meta => {
+        const sub = a.querySelector(".ppi-sub");
+        if (sub && meta && meta.desc) sub.textContent = meta.desc;
       });
-    }
-    // Restore last-chosen style (default = "index" already on the section).
-    let initial = "index";
-    try { initial = localStorage.getItem(PROJECTS_STYLE_KEY) || "index"; } catch {}
-    setProjectsStyle(initial);
+    });
   }
 
   // Inject "PROJECTS" alongside the existing nav. Squarespace renders the
@@ -2470,11 +2456,15 @@
   function injectProjectsNav() {
     const here = location.pathname;
     const onProjects = here === "/projects.html";
+    // Detail pages = anything reachable via imageDetailPages (Elf, Wedding, …).
+    const detailPaths = new Set(Object.values((CONFIG.imageDetailPages) || {}));
+    const onDetail = detailPaths.has(here);
+    const projActive = onProjects || onDetail;
     document.querySelectorAll(".header-nav-list, .header-menu-nav-folder-content").forEach(list => {
-      // Squarespace's static HTML marks one nav item with --active. On
-      // /projects.html the static markup still says PORTFOLIO is active
-      // (because we cloned portfolio.html for chrome). Strip that.
-      if (onProjects) {
+      // Squarespace's static HTML marks one nav item with --active. On a
+      // detail page or /projects.html the static markup still says PORTFOLIO
+      // is active (it's the chrome we cloned). Strip that so PROJECTS owns it.
+      if (projActive) {
         list.querySelectorAll(".header-nav-item--active, .header-menu-nav-item--active").forEach(el => {
           el.classList.remove("header-nav-item--active", "header-menu-nav-item--active");
           const a = el.querySelector("a[aria-current]");
@@ -2485,14 +2475,14 @@
       const isMenu = list.classList.contains("header-menu-nav-folder-content");
       const wrap = document.createElement("div");
       wrap.className = (isMenu ? "container header-menu-nav-item header-menu-nav-item--collection" : "header-nav-item header-nav-item--collection") +
-        " preview-projects-nav" + (here === "/projects.html" ? (isMenu ? " header-menu-nav-item--active" : " header-nav-item--active") : "");
+        " preview-projects-nav" + (projActive ? (isMenu ? " header-menu-nav-item--active" : " header-nav-item--active") : "");
       const inner = document.createElement(isMenu ? "div" : "span");
       if (isMenu) inner.className = "header-menu-nav-item-content";
       const a = document.createElement("a");
       a.href = "/projects.html";
       a.setAttribute("data-animation-role", "header-element");
       a.textContent = "PROJECTS";
-      if (here === "/projects.html") a.setAttribute("aria-current", "page");
+      if (projActive) a.setAttribute("aria-current", "page");
       inner.appendChild(a);
       wrap.appendChild(inner);
       // Insert after the existing PORTFOLIO link if we can find it.
